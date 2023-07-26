@@ -34,6 +34,7 @@ class OnlineMinimax(object):
         d = self._dual_player.predict(peek=-cons)
         self._dual_player.update(-cons)
         self._primal_player.update(x, pred, dual=d)
+        return d
 
 
 if __name__ == '__main__':
@@ -44,7 +45,7 @@ if __name__ == '__main__':
         
         def __init__(self, *, dim, obj_fn, cons_fn):
             import torch
-            
+                
             super().__init__()
             
             self.regressor = LogisticRegressor(in_features=1, out_features=dim)

@@ -51,6 +51,9 @@ class IwUpperMartingale(object):
             self._curlam = 0 if ftlnum <= 0 else min(self._maxlam, ftlnum / ftldenom)
         else:
             self._curlam = 0
+    
+    def wealth_fn(self, qi, xi, beta):
+        return torch.log1p(self._curlam * (self._theta - qi * self._rho(xi, beta)))
 
     def getbeta(self):
         return self._betas[self._curbetaindex], self._stats[self._curbetaindex, 0]
