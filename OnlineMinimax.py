@@ -56,7 +56,7 @@ if __name__ == '__main__':
         def predict(self, x):
             import torch
             
-            pred = self.regressor.predict(torch.zeros((1,1))).squeeze(0)
+            pred = self.regressor(torch.zeros((1,1))).squeeze(0)
             return pred, self.cons_fn(x, pred).item()
             
         def update(self, x, pred, dual):
@@ -65,7 +65,6 @@ if __name__ == '__main__':
             self.opt.zero_grad()
             loss = -self.obj_fn(x, pred) - dual*self.cons_fn(x, pred)
             loss.mean().backward()
-    
             self.opt.step()
             self.scheduler.step()
 
