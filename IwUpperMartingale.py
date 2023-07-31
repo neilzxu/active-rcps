@@ -1,41 +1,75 @@
-class IwUpperMartingale(object):
-    # assumptions: rho_max = 1, beta_min = 0, beta_max = 1
-    def __init__(self, *, rho, theta, q_min, n_betas, alpha):
+from abc import ABCMeta, abstractmethod
+
+class BaseMartingale(metaclass=ABCMeta):
+    """ Return current bet """
+    @property
+    @abstractmethod
+    def curlam(self):
+        pass
+
+    """ Return (smallest feasible beta, current beta being bet against, and associated wealth of current beta) """
+    @property
+    @abstractmethod
+    def curbeta(self):
+        pass
+
+    @abstractmethod
+    def addobs(self, x, q, l):
+        pass
+
+class GridMartingale(BaseMartingale, metaclass=ABCMeta):
+    @abstractmethod
+    def xi(self, x, q, l, betas):
+        pass
+
+    @property
+    @abstractmethod
+    def ximin(self):
+        pass
+
+    @property
+    def curlam(self):
+        return self._curlam
+
+    @property
+    def curbeta(self):
+        return ( self._betas[self._curbetaindex],
+                 self._betas[max(0, self._curbetaindex-1)],
+                 self._stats[max(0, self._curbetaindex-1), 0],
+               )
+
+    # assumptions: beta_min = 0, beta_max = 1
+    def __init__(self, *, n_betas, alpha):
         from collections import defaultdict
         from math import log
         import numpy as np
-        
+
         super().__init__()
-        
-        assert 0 <= theta <= 1
-        assert q_min > 0
+
         assert n_betas == int(n_betas) and n_betas > 1
         assert 0 < alpha < 1
-        
-        self._rho = rho
-        self._theta = theta
-        self._q_min = q_min
+
         self._n_betas = n_betas
         self._alpha = alpha
-        
+
         self._betas = np.linspace(0, 1, n_betas)
-        
-        # Column 0: logwealth
-        # Column 1: sum (theta - rho_i) / q_i
-        # Column 2: sum ((theta - rho_i) / q_i)^2
+
+        # Column 0: sum logwealth = sum log1p(curlam * xi)
+        # Column 1: sum xi
+        # Column 2: sum xi**2
         self._stats = np.zeros((n_betas, 3))
-        
+
         self._curbetaindex = n_betas - 1     # smallest beta that is proven safe
         self._curlam = 0
-        self._maxlam = q_min/2
+        self._maxlam = (1/2) * (1 / abs(self.ximin))
         self._thres = -log(alpha)
 
-    # only call this if you actually sample, otherwise no update
-    def addobs(self, qi, xi):
+
+    def addobs(self, x, q, l):
         if self._curbetaindex > 0:
             import numpy as np
 
-            xibetas = (self._theta - self._rho(xi, self._betas)) / qi
+            xibetas = np.array(self.xi(x, q, l, self._betas))
             self._stats[:,0] += np.log1p(self._curlam * xibetas)
             self._stats[:,1] += xibetas
             self._stats[:,2] += xibetas**2
@@ -51,51 +85,140 @@ class IwUpperMartingale(object):
             self._curlam = 0 if ftlnum <= 0 else min(self._maxlam, ftlnum / ftldenom)
         else:
             self._curlam = 0
-    
-    def wealth_fn(self, qi, xi, beta):
-        return torch.log1p(self._curlam * (self._theta - qi * self._rho(xi, beta)))
 
-    def getbeta(self):
-        return self._betas[self._curbetaindex], self._stats[self._curbetaindex, 0]
-    
-    def getlam(self):
-        return self._curlam
+
+class FullIwUpperMartingale(GridMartingale):
+    def xi(self, x, q, l, betas):
+        return (l / q) * (self._theta - self._rho(x, betas))
+
+    @property
+    def ximin(self):
+        return (self._theta - 1) / self._q_min
+
+    def addobs(self, x, q, l):
+        if l == 1:
+            super().addobs(x, q, l)
+
+    # assumption: rho_max == 1
+    def __init__(self, rho, q_min, theta, *args, **kwargs):
+        self._rho = rho
+        self._q_min = q_min
+        self._theta = theta
+
+        super().__init__(*args, **kwargs)
+
+class PartialIwUpperMartingale(GridMartingale):
+    def xi(self, x, q, l, betas):
+        return self._theta - (l / q) * self._rho(x, betas)
+
+    @property
+    def ximin(self):
+        return self._theta - (1 / self._q_min)
+
+    def addobs(self, x, q, l):
+        super().addobs(x, q, l)
+
+    # assumption: rho_max == 1
+    def __init__(self, rho, q_min, theta, *args, **kwargs):
+        self._rho = rho
+        self._q_min = q_min
+        self._theta = theta
+
+        super().__init__(*args, **kwargs)
+
+
+class ShiftedIwUpperMartingale(GridMartingale):
+    def xi(self, x, q, l, betas):
+        return self._theta - 1 + (l / q) * (1 - self._rho(x, betas))
+
+    @property
+    def ximin(self):
+        return self._theta - 1
+
+    def addobs(self, x, q, l):
+        super().addobs(x, q, l)
+
+    # assumption: rho_max == 1
+    def __init__(self, rho, theta, *args, **kwargs):
+        self._rho = rho
+        self._theta = theta
+
+        super().__init__(*args, **kwargs)
+
+
+class FullyObservedUpperMartingale(GridMartingale):
+    def xi(self, x, q, l, betas):
+        return self._theta - self._rho(x, betas)
+
+    @property
+    def ximin(self):
+        return self._theta - 1
+
+    def addobs(self, x, q, l):
+        super().addobs(x, q, l)
+
+    # assumption: rho_max == 1
+    def __init__(self, rho, theta, *args, **kwargs):
+        self._rho = rho
+        self._theta = theta
+
+        super().__init__(*args, **kwargs)
+
 
 if __name__ == '__main__':
     def test_once(gen, n_max):
         import numpy as np
-        # p is the true probability of a positive 
+        # p is the true probability of a positive
         # y is the realized outcome
         # our decision is 1_{beta <= p}
-        
+
         def rho(x, betas):
             (p, y) = x
             return np.array(betas <= p) * (1 - y)
-        
-        cs = IwUpperMartingale(rho=rho, theta=0.05, q_min=1/10, n_betas=100, alpha=0.05)
-            
-        rv = []
-            
+
+        q_min = 1/10
+        fullcs = FullIwUpperMartingale(rho=rho, q_min=q_min, theta=0.05, n_betas=100, alpha=0.05)
+        partcs = PartialIwUpperMartingale(rho=rho, q_min=q_min, theta=0.05, n_betas=100, alpha=0.05)
+        shiftcs = ShiftedIwUpperMartingale(rho=rho, theta=0.05, n_betas=100, alpha=0.05)
+
+        fullrv, partrv, shiftrv = [], [], []
+
         for n in range(n_max):
             p = round(gen.uniform(), 2)
             y = 1 if gen.uniform() <= p else 0
-            qi = gen.uniform(low=0.1, high=1)
-            li = gen.binomial(1, qi)
-            if li:
-                cs.addobs(qi=qi, xi=(p, y))
-            rv.append(cs.getbeta()[0])
-            
-        return rv
-            
+            q = gen.uniform(low=q_min, high=1)
+            l = gen.binomial(1, q)
+            fullcs.addobs(x=(p, y), q=q, l=l)
+            fullrv.append(fullcs.curbeta[0])
+            partcs.addobs(x=(p, y), q=q, l=l)
+            partrv.append(partcs.curbeta[0])
+            shiftcs.addobs(x=(p, y), q=q, l=l)
+            shiftrv.append(shiftcs.curbeta[0])
+
+        return fullrv, partrv, shiftrv
+
     def test():
         import numpy as np
         gen = np.random.default_rng(2)
-        curve = test_once(gen, 50000)
+        fullcurve, partcurve, shiftcurve = test_once(gen, 50_000)
         truefp = lambda z: (100 - int(z)) * (101 - int(z)) / 20_000
-        truefpbetas = np.array([ truefp(100*beta) for beta in curve ])
-        assert np.all(truefpbetas <= 0.05)
-        assert curve[-1] < 0.725
-        assert truefpbetas[-1] > 0.045
-        print('test pass')
-        
-    test()      
+
+        fulltruefpbetas = np.array([ truefp(100*beta) for beta in fullcurve ])
+        assert np.all(fulltruefpbetas <= 0.05)
+        assert fullcurve[-1] < 0.725, (fullcurve[-1], fulltruefpbetas[-1])
+        assert fulltruefpbetas[-1] > 0.045
+        print('first test pass')
+
+        parttruefpbetas = np.array([ truefp(100*beta) for beta in partcurve ])
+        assert np.all(parttruefpbetas <= 0.05)
+        assert partcurve[-1] < 0.725, (partcurve[-1], parttruefpbetas[-1])
+        assert parttruefpbetas[-1] > 0.045
+        print('second test pass')
+
+        shifttruefpbetas = np.array([ truefp(100*beta) for beta in shiftcurve ])
+        assert np.all(shifttruefpbetas <= 0.05)
+        assert shiftcurve[-1] < 0.775, (shiftcurve[-1], shifttruefpbetas[-1])
+        assert shifttruefpbetas[-1] >= 0.03, shifttruefpbetas[-1]
+        print('third test pass')
+
+    test()

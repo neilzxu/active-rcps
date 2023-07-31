@@ -9,7 +9,20 @@ class BestResponse(object):
     def update(self, reward):
         pass
 
-# best response seems better (?)
+class WindowedBeTheLeader(object):
+    def __init__(self, *, max_dual, window_size):
+        from collections import deque
+        super().__init__()
+        self._max_dual = max_dual
+        self._history = deque(maxlen=window_size)
+
+    def predict(self, peek):
+        violator = peek + sum(self._history)
+        return self._max_dual if violator > 0 else 0
+
+    def update(self, reward):
+        self._history.append(reward)
+
 class BeTheLeader(object):
     def __init__(self, *, max_dual):
         super().__init__()
@@ -38,7 +51,7 @@ class OnlineMinimax(object):
 
 
 if __name__ == '__main__':
-    from LogisticRegression import LogisticRegressor
+    from LogisticRegression import MultilabelRegressor
 
     class OnlinePenalizedLogisticRegression(object):
         import torch
@@ -48,7 +61,7 @@ if __name__ == '__main__':
                 
             super().__init__()
             
-            self.regressor = LogisticRegressor(in_features=1, out_features=dim)
+            self.regressor = MultilabelRegressor(in_features=1, out_classes=dim)
             self.obj_fn = obj_fn
             self.cons_fn = cons_fn
             self.opt = torch.optim.Adam(self.regressor.parameters(), lr=5e-1)
