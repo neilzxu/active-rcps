@@ -11,3 +11,5 @@ class LogisticRegressor(torch.nn.Module):
 
     def forward(self, X):
         return self.sigmoid(self.pre_logits(X))
+    def predict(self, X):
+        return self.sigmoid(self.pre_logits(X))
