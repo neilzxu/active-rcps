@@ -17,6 +17,9 @@ class BaseMartingale(metaclass=ABCMeta):
     def addobs(self, x, q, l):
         pass
 
+
+        
+    
 class GridMartingale(BaseMartingale, metaclass=ABCMeta):
     @abstractmethod
     def xi(self, x, q, l, betas):
@@ -86,6 +89,7 @@ class GridMartingale(BaseMartingale, metaclass=ABCMeta):
         else:
             self._curlam = 0
 
+            
 
 class FullIwUpperMartingale(GridMartingale):
     def xi(self, x, q, l, betas):
