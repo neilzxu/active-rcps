@@ -5,6 +5,11 @@ class MultilabelRegressor(torch.nn.Module):
         super().__init__()
         self.linear = torch.nn.Linear(in_features=in_features, out_features=out_classes, bias=bias)
 
+    def constant_init(self, pconst):
+        if self.linear.bias is not None:
+            self.linear.bias.fill_(torch.special.logit(torch.Tensor([pconst])).item())
+        self.linear.weight.fill_(0)
+
     def pre_logits(self, X):
         return self.linear(X)
 
