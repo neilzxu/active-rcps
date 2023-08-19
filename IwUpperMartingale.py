@@ -18,68 +18,6 @@ class BaseMartingale(metaclass=ABCMeta):
         pass
 
     
-class DummyMartingale(BaseMartingale):
-    """Class that always outputs a singular beta"""
-    def __init__(self, *, theta, rho, q_min, init_beta, xi_fn,  **kwargs):
-        from collections import defaultdict
-        from math import log
-        import numpy as np
-
-        super().__init__()
-
-        self._rho = rho
-        self._theta = theta
-        self._q_min = q_min
-        self._xi_fn = xi_fn
-        self._betas = np.array([init_beta])
-
-        # Column 0: sum logwealth = sum log1p(curlam * xi)
-        # Column 1: sum xi
-        # Column 2: sum xi**2
-        self._stats = np.zeros((1, 3))
-
-        self._curbetaindex = 0     # smallest beta that is proven safe
-        self._curlam = 0
-
-        self._maxlam = (1/2) * (1 / abs(self.ximin))
-
-    def xi(self, x, q, l, betas):
-        if self._xi_fn == 'full':
-            return (l / q) * (self._theta - self._rho(x, betas))
-        elif self._xi_fn == 'fully_observed':
-            return self._theta - self._rho(x, betas)
-        else:
-            return self._theta - ((l / q) * self._rho(x, betas))
-
-    @property
-    def ximin(self):
-        if self._xi_fn == 'full':
-            return (self._theta - 1) / self._q_min
-        elif self._xi_fn == 'fully_observed':
-            return self._theta - 1
-        else:
-            return self._theta - (1 / self.q_min)
-    @property
-    def curlam(self):
-        return self._curlam
-
-    @property
-    def curbeta(self):
-        return ( self._betas[self._curbetaindex],
-                 self._betas[max(0, self._curbetaindex-1)],
-                 self._stats[max(0, self._curbetaindex-1), 0],
-               )
-
-    def addobs(self, x, q, l):
-        import numpy as np
-        xibetas = np.array(self.xi(x, q, l, self._betas)).reshape(-1)
-        self._stats[:,0] += np.log1p(self._curlam * xibetas)
-        self._stats[:,1] += xibetas
-        self._stats[:,2] += xibetas**2
-
-        ftlnum = self._stats[self._curbetaindex, 1]
-        ftldenom = self._stats[self._curbetaindex, 1] + self._stats[self._curbetaindex - 1, 2]
-        self._curlam = 0 if ftlnum <= 0 else min(self._maxlam, ftlnum / ftldenom)
 
         
     
@@ -105,7 +43,7 @@ class GridMartingale(BaseMartingale, metaclass=ABCMeta):
                )
 
     # assumptions: beta_min = 0, beta_max = 1
-    def __init__(self, *, n_betas, alpha):
+    def __init__(self, *, n_betas, alpha, stop_comp=True):
         from collections import defaultdict
         from math import log
         import numpy as np
@@ -129,10 +67,11 @@ class GridMartingale(BaseMartingale, metaclass=ABCMeta):
         self._curlam = 0
         self._maxlam = (1/2) * (1 / abs(self.ximin))
         self._thres = -log(alpha)
+        self._stop_comp = True
 
 
     def addobs(self, x, q, l):
-        if self._curbetaindex > 0:
+        if self._curbetaindex > 0 or not self._stop_comp:
             import numpy as np
 
             xibetas = np.array(self.xi(x, q, l, self._betas))
@@ -145,14 +84,13 @@ class GridMartingale(BaseMartingale, metaclass=ABCMeta):
                 self._betas = self._betas[:self._curbetaindex+1]
                 self._stats = self._stats[:self._curbetaindex+1,:]
 
-        if self._curbetaindex > 0:
+        if self._curbetaindex > 0 or not self._stop_comp:
             ftlnum = self._stats[self._curbetaindex - 1, 1]
             ftldenom = self._stats[self._curbetaindex - 1, 1] + self._stats[self._curbetaindex - 1, 2]
             self._curlam = 0 if ftlnum <= 0 else min(self._maxlam, ftlnum / ftldenom)
         else:
             self._curlam = 0
 
-            
 
 class FullIwUpperMartingale(GridMartingale):
     def xi(self, x, q, l, betas):
@@ -173,7 +111,18 @@ class FullIwUpperMartingale(GridMartingale):
         self._theta = theta
 
         super().__init__(*args, **kwargs)
+        
+class DummyMartingale(FullIwUpperMartingale):
+    """Class that always outputs a singular beta"""
+    def __init__(self, init_beta, *args, **kwargs):
+        import numpy as np
 
+        super().__init__(*args, n_betas=2, stop_comp=False, **kwargs)
+        self._betas = np.array([init_beta, 1])
+        self._curbetaindex = 1
+        self._thres = np.inf
+
+        
 class PartialIwUpperMartingale(GridMartingale):
     def xi(self, x, q, l, betas):
         return self._theta - (l / q) * self._rho(x, betas)
