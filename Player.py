@@ -13,7 +13,7 @@ class Player(object):
     
     def update(self, PXY, QL, dual):
         import torch
-        (P, X), Y = x
+        (P, X), Y = PXY
         Q, L = QL
 
         with torch.no_grad():
@@ -38,7 +38,8 @@ class LabellingPolicyPrimalPlayer(Player):
     def predict(self, PXY):
         import torch
         
-        
+        (_, X), _ = PXY
+       
         Q = self._q_min + (1 - self._q_min) * self._policy(X).squeeze(1)
         with torch.no_grad():
             cons = (self._target_rate - torch.mean(Q)).item()

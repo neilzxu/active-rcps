@@ -1,6 +1,6 @@
 def test_once(scores, labels, seed, label_ct):
     from itertools import product
-    from Cocob import CocobBackprop
+    from cocob import COCOB
     from IwUpperMartingale import FullIwUpperMartingale, PartialIwUpperMartingale, FullyObservedUpperMartingale, ShiftedIwUpperMartingale, BaseMartingale
     from OnlineMinimax import OnlineMinimax, WindowedBeTheLeader
     from LogisticRegression import MultilabelRegressor
@@ -10,8 +10,7 @@ def test_once(scores, labels, seed, label_ct):
     import torch
     from tqdm import tqdm
     import multiprocess as mp
-    from Player import DummyPlayer, DummyMinimax
-
+    from Player import Player
     
     if True:
         torch.manual_seed(seed)
@@ -81,8 +80,9 @@ def test_once(scores, labels, seed, label_ct):
                                        target_rate=target_rate,
                                        iwmart=PartialIwUpperMartingale(rho=rho, theta=theta, q_min=q_min, n_betas=100, alpha=0.05),
                                       )
-        fobv_minimax = DummyMinimax(player=DummyPlayer(
-                                      iwmart=FullyObservedUpperMartingale(rho=rho, theta=theta, n_betas=100, alpha=0.05)))
+        fobv_minimax = OnlineMinimax(primal_player=Player(
+                                      iwmart=FullyObservedUpperMartingale(rho=rho, theta=theta, n_betas=100, alpha=0.05)),
+                                      dual_player=WindowedBeTheLeader(max_dual=1 - np.log(2), window_size=256))
         
         
         
@@ -126,12 +126,12 @@ if __name__ == '__main__':
     print("Imagenet data size", scores.shape, labels.shape)
    
     
-    out_dir = 'results/beta_est_2500'
+    out_dir = 'results/beta_est_600_trials'
     
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
         
-    trials = 100
+    trials = 600
     label_ct = 2000
     res_list = []
     for seed in tqdm(range(1, trials + 1), desc="Trials"):
