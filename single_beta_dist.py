@@ -1,5 +1,5 @@
 
-def test_once(scores, labels, seed, step=10, run_length=1000, alpha=0.05):
+def test_once(scores, labels, seed, step=10, run_length=1000, min_label_len, alpha=0.05):
     from itertools import product
     from IwUpperMartingale import DummyMartingale     
     from Risk import TopBetaCoverage
@@ -95,10 +95,6 @@ def test_once(scores, labels, seed, step=10, run_length=1000, alpha=0.05):
         
         
         
-        
-        
-
-    # print(f'{"n":5s}\t', f'{"L":5s}\t', f'{"bet":10s}\t', f'{"beta":10s}\t', f'{"p":60s}\t', f'{"Q(p)":60s}\t', f'{"cons":10s}\t', f'{"dual":10s}\t')
     
     randperm = torch.randperm(len(scores))
     rand_scores, rand_labels = torch.Tensor(scores[randperm]), torch.Tensor(labels[randperm]).int()
@@ -146,7 +142,7 @@ if __name__ == '__main__':
     
     run_length = 50000
     trials = 1000
-    alpha = 0.1
+    alpha = 0.01
     data_dir = 'data/imagenet_no_T'
     scores, labels = load_imagenet_torch_preds(data_dir)
     print("Imagenet data size", scores.shape, labels.shape)
