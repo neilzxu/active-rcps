@@ -1,4 +1,4 @@
-def test_once(scores, labels, seed, label_ct):
+def test_once(scores, labels, seed, label_ct, weights=None):
     from itertools import product
     from cocob import COCOB
     from IwUpperMartingale import FullIwUpperMartingale, PartialIwUpperMartingale, FullyObservedUpperMartingale, ShiftedIwUpperMartingale, BaseMartingale
@@ -15,8 +15,8 @@ def test_once(scores, labels, seed, label_ct):
     if True:
         torch.manual_seed(seed)
         np.set_printoptions(2, floatmode='fixed')
-
-        wc_rho = TopBetaCoverage()
+        
+        wc_rho = TopBetaCoverage() if weights is None else wc_rho(w=weights)
         rho = lambda x, beta: wc_rho(x, beta, is_torch=True)
         theta = 0.1
         q_min = 0.1
@@ -30,7 +30,7 @@ def test_once(scores, labels, seed, label_ct):
                 opt = torch.optim.Adam(policy.parameters(), lr=lr)
                 sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=lambda t:1) # (1+t/1000)**(-0.5))
             else:
-                opt = CocobBackprop(policy.parameters())
+                opt = COCOB(policy.parameters())
                 sched = None
             primal_player = LabellingPolicyPrimalPlayer(policy=policy, 
                                                         q_min=q_min,
@@ -112,27 +112,49 @@ def test_once(scores, labels, seed, label_ct):
     return names, minimaxes, sumlses, betases
 
 if __name__ == '__main__':
+    import argparse
     import dill
     import os
     import matplotlib.pyplot as plt
+    import numpy as np
     import pandas as pd
     import seaborn as sns
     from tqdm import tqdm
     
     from load_data import load_imagenet_torch_preds
     
-    data_dir = 'data/imagenet_no_T'
+    parser = argparse.ArgumentParser(
+                    prog='Beta CI')
+    
+    parser.add_argument('--data_dir', type=str, default='data/imagenet_no_T')
+    parser.add_argument('--out_dir', type=str, default='results/beta_est_600_trials')
+    parser.add_argument('--trials', type=int, default=600)
+    parser.add_argument('--label_ct', type=int, default=2000)
+    parser.add_argument('--weight_path', type=str, default=None)
+    args = parser.parse_args()
+    
+    data_dir, out_dir, trials, label_ct, weight_path = args.data_dir, args.out_dir, args.trials, args.label_ct, args.weight_path
+    
     scores, labels = load_imagenet_torch_preds(data_dir)
     print("Imagenet data size", scores.shape, labels.shape)
-   
     
-    out_dir = 'results/beta_est_600_trials'
+    weights = None if weight_path is None else np.load(args.weight_path)
+    
+    run_args = {
+        'data_dir': data_dir,
+        'out_dir': out_dir,
+        'trials': trials,
+        'label_ct': label_ct,
+        'weight_path': weight_path,
+        'weights': weights
+    }
     
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
         
-    trials = 600
-    label_ct = 2000
+    with open(f'{out_dir}/run_args.pkl', 'wb') as out_f:
+        dill.dump(run_args, out_f)
+        
     res_list = []
     for seed in tqdm(range(1, trials + 1), desc="Trials"):
         res = test_once(scores, labels, seed=seed, label_ct=label_ct)
@@ -154,4 +176,4 @@ if __name__ == '__main__':
 
     plt.savefig(f'{out_dir}/last_beta_dist.png', dpi=300)
         
-        
+    
