@@ -96,15 +96,20 @@ class WeightedCoverage(object):
         self.w = w if w is not None else np.ones(1000)
         self.torch_w = torch.Tensor(self.w)
 
+    def beta_coverage_set(self, P, betas):
+        threshold = 1 - betas
+        w_P = P * self.torch_w.reshape(1, -1)
+        return w_P >= threshold
+        
     def __call__(self, PXY, betas, is_torch=False):
         import numpy as np
         (P, _), Y = PXY
+        threshold = 1 - betas
         if is_torch:
-            return (1. - (betas <= P)[np.arange(P.shape[0]), Y].float()) * self.torch_w[Y]
+            return (1. - self.beta_coverage_set(P, betas)[np.arange(P.shape[0]), Y].float()) * self.torch_w[Y]
         else:
-            return (1. - (betas <= P)[np.arange(P.shape[0]), Y]) * self.w[Y]
-        # return (np.argmax(P, axis=-1) == Y)
-
+            return (1. - self.beta_coverage_set(P, betas)[np.arange(P.shape[0]), Y]) * self.w[Y]
+        
     def sample(self):
         import torch
         

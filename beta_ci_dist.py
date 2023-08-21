@@ -160,7 +160,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                 minimax.addobs(in_data)
 
                 if curbeta < betas[
-                        -1] or minimax._primal_player._suml == label_ct:
+                        -1] or minimax._primal_player._suml >= label_ct:
                     sumls.append(minimax._primal_player._suml)
                     betas.append(curbeta)
         if np.all(
@@ -168,7 +168,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                     [minimax._primal_player._suml
                      for minimax in minimaxes]) >= label_ct):
             break
-
+    assert np.all(np.array([minimax._primal_player._suml for minimax in minimaxes]) >= label_ct), [minimax._primal_player._suml for minimax in minimaxes]
     return names, minimaxes, sumlses, betases
 
 

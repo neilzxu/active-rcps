@@ -19,8 +19,6 @@ class Player(object):
         with torch.no_grad():
             for pj, xj, yj, qj, lj in zip(P, X, Y, torch.ones(Y.shape[0]), torch.ones(Y.shape[0])):
                 self._iwmart.addobs(x=((pj, xj), yj), q=qj.item(), l=lj)
-                self._suml += Y.shape[0]
-
 
 class LabellingPolicyPrimalPlayer(Player):
     def __init__(self, *, policy, q_min, target_rate, theta, rho, opt, sched, iwmart):
