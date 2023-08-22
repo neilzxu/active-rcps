@@ -13,14 +13,12 @@ class Player(object):
     
     def update(self, PXY, QL, dual):
         import torch
-        (P, X), Y = x
+        (P, X), Y = PXY
         Q, L = QL
 
         with torch.no_grad():
             for pj, xj, yj, qj, lj in zip(P, X, Y, torch.ones(Y.shape[0]), torch.ones(Y.shape[0])):
                 self._iwmart.addobs(x=((pj, xj), yj), q=qj.item(), l=lj)
-                self._suml += Y.shape[0]
-
 
 class LabellingPolicyPrimalPlayer(Player):
     def __init__(self, *, policy, q_min, target_rate, theta, rho, opt, sched, iwmart):
@@ -38,7 +36,8 @@ class LabellingPolicyPrimalPlayer(Player):
     def predict(self, PXY):
         import torch
         
-        
+        (_, X), _ = PXY
+       
         Q = self._q_min + (1 - self._q_min) * self._policy(X).squeeze(1)
         with torch.no_grad():
             cons = (self._target_rate - torch.mean(Q)).item()
