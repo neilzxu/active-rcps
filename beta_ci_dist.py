@@ -29,7 +29,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                         q_min,
                         target_rate,
                         iwmart,
-                        optimizer='adam'):
+                        optimizer='cocob'):
             from Player import LabellingPolicyPrimalPlayer
             if optimizer == 'adam':
                 opt = torch.optim.Adam(policy.parameters(), lr=lr)
@@ -84,21 +84,6 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                                             alpha=0.05),
         )
 
-        full_cocob_minimax = makeMinimax(
-            policy=MultilabelRegressor(in_features=feature_ct,
-                                       out_classes=1,
-                                       bias=True,
-                                       base_rate=base_rate),
-            lr=5e-3,
-            q_min=q_min,
-            target_rate=target_rate,
-            iwmart=FullIwUpperMartingale(rho=rho,
-                                         theta=theta,
-                                         q_min=q_min,
-                                         n_betas=100,
-                                         alpha=0.05),
-            optimizer='cocob')
-
         full_minimax = makeMinimax(
             policy=MultilabelRegressor(in_features=feature_ct,
                                        out_classes=1,
@@ -137,15 +122,15 @@ def test_once(scores, labels, seed, label_ct, weights=None):
         labels[randperm]).int()
 
     minimaxes = [
-        partial_minimax, shifted_minimax, full_cocob_minimax, full_minimax,
-        const_minimax, fobv_minimax
+        partial_minimax, shifted_minimax, full_minimax, const_minimax,
+        fobv_minimax
     ]
     sumlses, betases = [[0] for _ in range(len(minimaxes))
                         ], [[minimax._primal_player._iwmart.curbeta[0]]
                             for minimax in minimaxes]
     names = [
         'active (partial)', 'active (shifted)', 'active (full)',
-        'active (full+cocob)', 'oblivious (partial)', 'sample everything'
+        'oblivious (partial)', 'sample everything'
     ]
     for n in tqdm(range(len(scores)), desc="Running samples", leave=False):
 
@@ -168,7 +153,11 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                     [minimax._primal_player._suml
                      for minimax in minimaxes]) >= label_ct):
             break
-    assert np.all(np.array([minimax._primal_player._suml for minimax in minimaxes]) >= label_ct), [minimax._primal_player._suml for minimax in minimaxes]
+    assert np.all(
+        np.array([minimax._primal_player._suml
+                  for minimax in minimaxes]) >= label_ct), [
+                      minimax._primal_player._suml for minimax in minimaxes
+                  ]
     return names, minimaxes, sumlses, betases
 
 
