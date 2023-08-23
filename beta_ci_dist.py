@@ -29,7 +29,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                         q_min,
                         target_rate,
                         iwmart,
-                        optimizer='cocob'):
+                        optimizer='adam'):
             from Player import LabellingPolicyPrimalPlayer
             if optimizer == 'adam':
                 opt = torch.optim.Adam(policy.parameters(), lr=lr)
@@ -68,6 +68,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                                             q_min=q_min,
                                             n_betas=100,
                                             alpha=0.05),
+            optimizer='cocob'
         )
 
         shifted_minimax = makeMinimax(
@@ -82,7 +83,9 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                                             theta=theta,
                                             n_betas=100,
                                             alpha=0.05),
+            optimizer='cocob'
         )
+
 
         full_minimax = makeMinimax(
             policy=MultilabelRegressor(in_features=feature_ct,
@@ -97,6 +100,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                                          q_min=q_min,
                                          n_betas=100,
                                          alpha=0.05),
+            optimizer='cocob'
         )
         const_minimax = makeMinimax(
             policy=MultilabelRegressor(in_features=feature_ct,
@@ -122,8 +126,8 @@ def test_once(scores, labels, seed, label_ct, weights=None):
         labels[randperm]).int()
 
     minimaxes = [
-        partial_minimax, shifted_minimax, full_minimax, const_minimax,
-        fobv_minimax
+        partial_minimax, shifted_minimax, full_minimax,
+        const_minimax, fobv_minimax
     ]
     sumlses, betases = [[0] for _ in range(len(minimaxes))
                         ], [[minimax._primal_player._iwmart.curbeta[0]]
@@ -153,11 +157,7 @@ def test_once(scores, labels, seed, label_ct, weights=None):
                     [minimax._primal_player._suml
                      for minimax in minimaxes]) >= label_ct):
             break
-    assert np.all(
-        np.array([minimax._primal_player._suml
-                  for minimax in minimaxes]) >= label_ct), [
-                      minimax._primal_player._suml for minimax in minimaxes
-                  ]
+    assert np.all(np.array([minimax._primal_player._suml for minimax in minimaxes]) >= label_ct), [minimax._primal_player._suml for minimax in minimaxes]
     return names, minimaxes, sumlses, betases
 
 
@@ -173,12 +173,11 @@ if __name__ == '__main__':
 
     from load_data import load_imagenet_torch_preds
 
-    parser = argparse.ArgumentParser(prog='Beta CI')
+    parser = argparse.ArgumentParser(
+                    prog='Beta CI')
 
     parser.add_argument('--data_dir', type=str, default='data/imagenet_no_T')
-    parser.add_argument('--out_dir',
-                        type=str,
-                        default='results/beta_est_600_trials')
+    parser.add_argument('--out_dir', type=str, default='results/beta_est_600_trials')
     parser.add_argument('--trials', type=int, default=600)
     parser.add_argument('--label_ct', type=int, default=2000)
     parser.add_argument('--weight_path', type=str, default=None)
