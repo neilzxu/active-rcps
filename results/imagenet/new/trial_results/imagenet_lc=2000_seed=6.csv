@@ -1,0 +1,6 @@
+,Method,$\widehat{\beta}$,seed,label_ct
+0,active (partial),0.8585858585858587,6,2000.0
+1,active (shifted),0.8787878787878789,6,2000.0
+2,active (full),0.8585858585858587,6,2000.0
+3,oblivious (partial),0.8989898989898991,6,2000.0
+4,sample everything,0.9090909090909092,6,2000.0

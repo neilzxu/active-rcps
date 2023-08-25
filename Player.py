@@ -21,7 +21,7 @@ class Player(object):
                 self._iwmart.addobs(x=((pj, xj), yj), q=qj.item(), l=lj)
 
 class LabellingPolicyPrimalPlayer(Player):
-    def __init__(self, *, policy, q_min, target_rate, theta, rho, opt, sched, iwmart):
+    def __init__(self, *, policy, q_min, target_rate, theta, rho, opt, sched, iwmart, cv_predictor=None, cv_opt=None):
         assert 0 <= q_min < target_rate 
         
         super().__init__(iwmart=iwmart)
@@ -32,6 +32,8 @@ class LabellingPolicyPrimalPlayer(Player):
         self._rho = rho
         self._opt = opt
         self._sched = sched
+        self._cv_predictor = cv_predictor
+        self._cv_opt = None
         
     def predict(self, PXY):
         import torch
@@ -68,6 +70,8 @@ class LabellingPolicyPrimalPlayer(Player):
         self._opt.step()
         if self._sched is not None:
             self._sched.step()
+        if self._cv_predictor is not None:
+            self._cv_predictor.update(PXY)
         
         # update betting martingale
         super().update(PXY, QL, dual)

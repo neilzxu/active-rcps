@@ -116,5 +116,37 @@ class WeightedCoverage(object):
         p = torch.rand(1)
         y = torch.bernoulli(p)
         return p, y
+    
+class NegRecall(object):
+    def __init__(self):
+        super().__init__()
 
-        
+    def beta_coverage_set(self, P, betas):
+        threshold = 1 - betas
+        return P >= threshold
+    def _compute_loss(self, P, Y, betas):
+        import torch
+        recall = (self.beta_coverage_set(P, betas) & Y.bool()).float().sum(dim=-1) / Y.float().sum(dim=-1)
+        return 1 - recall
+
+    def __call__(self, PXY, betas, is_torch=False, betas_is_torch=False):
+        import torch
+        (P, _), Y = PXY
+
+        betas = (betas if betas_is_torch else torch.Tensor([betas])).reshape(-1, 1)
+
+        # Either a batch of P or a batch of betas, but not both
+        assert len(P.shape) == 1 or (P.shape[0] == 1) or betas.shape[0] == 1, (P.shape, betas.shape)
+        if len(P.shape) == 1:
+            P = P.reshape(1, -1)
+
+        if is_torch:
+            res = self._compute_loss(P, Y, betas)
+        else:
+            res = self._compute_loss(torch.Tensor(P), torch.Tensor(Y), betas).numpy()
+
+        if betas.shape[0] != 1:
+            return res.reshape(-1)
+        else:
+            return res
+

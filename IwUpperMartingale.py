@@ -125,22 +125,33 @@ class DummyMartingale(FullIwUpperMartingale):
         
 class PartialIwUpperMartingale(GridMartingale):
     def xi(self, x, q, l, betas):
+        """
+        Black box insertion of cv_predictor. Note that OnlineMinimax calls self._xi as the
+        loss function when updating the Player. So this should update corectly for
+        (1) if we use the LabelingPolicy in the Player itself
+        (2) if we use another cv_predictor that we update through backprop.
+        """
+        residuals = self._rho(x, betas) - self._cv_predictor(x, betas)
         return self._theta - (l / q) * self._rho(x, betas)
 
     @property
     def ximin(self):
-        return self._theta - (1 / self._q_min)
+        residual_ub = 1 - self._cv_min 
+        return self._theta - (1 / self._q_min * residual_ub)
 
     def addobs(self, x, q, l):
         super().addobs(x, q, l)
 
     # assumption: rho_max == 1
-    def __init__(self, rho, q_min, theta, *args, **kwargs):
+    def __init__(self, rho, q_min, theta, *args, cv_predictor=None, cv_min=0, **kwargs):
         self._rho = rho
         self._q_min = q_min
         self._theta = theta
+        self._cv_predictor = cv_predictor
+        self._cv_min = cv_min
 
         super().__init__(*args, **kwargs)
+
 
 
 class ShiftedIwUpperMartingale(GridMartingale):
