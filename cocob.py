@@ -1,14 +1,16 @@
 # Copyright (c) Francesco Orabona.
 # All rights reserved.
-# 
+#
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
 import torch
 from torch.optim.optimizer import Optimizer
 
+
 class COCOB(Optimizer):
     r"""Implements COCOB algorithm.
+
     It has been proposed in `Training Deep Networks without Learning Rates Through Coin Betting`_.
     Arguments:
         params (iterable): iterable of parameters to optimize or dicts defining
@@ -23,7 +25,11 @@ class COCOB(Optimizer):
         https://arxiv.org/abs/1705.07795
     """
 
-    def __init__(self, params, alpha: float = 100, eps: float = 1e-8, weight_decay: float = 0):
+    def __init__(self,
+                 params,
+                 alpha: float = 100,
+                 eps: float = 1e-8,
+                 weight_decay: float = 0):
         if not 0.0 <= eps:
             raise ValueError("Invalid epsilon value: {}".format(eps))
         if not 0.0 <= alpha:
@@ -39,8 +45,9 @@ class COCOB(Optimizer):
         super(COCOB, self).__init__(params, defaults)
 
     @torch.no_grad()
-    def step(self, closure = None):
+    def step(self, closure=None):
         """Performs a single optimization step.
+
         Arguments:
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
@@ -49,25 +56,27 @@ class COCOB(Optimizer):
         if closure is not None:
             with torch.enable_grad():
                 loss = closure()
-        
+
         for group in self.param_groups:
             for p in group['params']:
                 if p.grad is None:
                     continue
                 grad = p.grad
                 if grad.is_sparse:
-                    raise RuntimeError('COCOB does not support sparse gradients')
+                    raise RuntimeError(
+                        'COCOB does not support sparse gradients')
 
                 state = self.state[p]
 
                 # State initialization
                 if len(state) == 0:
                     # Sum of the negative gradients
-                    state['sum_negative_gradients'] = torch.zeros_like(p).detach()
+                    state['sum_negative_gradients'] = torch.zeros_like(
+                        p).detach()
                     # Sum of the absolute values of the stochastic subgradients
                     state['grad_norm_sum'] = torch.zeros_like(p).detach()
                     # Maximum observed scale
-                    state['L'] = self._eps*torch.ones_like(p).detach()
+                    state['L'] = self._eps * torch.ones_like(p).detach()
                     # Reward/wealth of the algorithm for each coordinate
                     state['reward'] = torch.zeros_like(p).detach()
                     # We need to save the initial point because this is a FTRL-based algorithm
@@ -95,8 +104,10 @@ class COCOB(Optimizer):
                 # reset the wealth to zero in case we lost all
                 torch.maximum(reward, torch.zeros_like(reward), out=reward)
                 # calculate denominator
-                den = torch.maximum(grad_norm_sum.add(L), L.mul(self._alpha)).mul(L)
+                den = torch.maximum(grad_norm_sum.add(L),
+                                    L.mul(self._alpha)).mul(L)
                 # update model parameters
-                p.data.copy_(reward.add(L).mul(sum_negative_gradients).div(den).add(x0))
-                                
+                p.data.copy_(
+                    reward.add(L).mul(sum_negative_gradients).div(den).add(x0))
+
         return loss
