@@ -1,7 +1,0 @@
-,Unnamed: 0,Method,$\widehat{\beta}$,seed,label_ct
-0,0,active (partial),0.8585858585858587,576,2000.0
-1,1,active (partial+cons_cv),0.8787878787878789,576,2000.0
-2,2,active (shifted),0.8787878787878789,576,2000.0
-3,3,active (full),0.8585858585858587,576,2000.0
-5,5,sample everything,0.9191919191919192,576,2000.0
-0,0,oblivious (partial),0.8686868686868687,576,2000.0

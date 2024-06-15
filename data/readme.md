@@ -1,8 +1,0 @@
-# Cached, pre-computed data
-
-These are class probabilities vectors that are pre-computed for the purpose of faster experimentation from the experiment setups in [https://github.com/aangelopoulos/rcps].
-
-- `coco/`: needs no explanation, this is the class probabilities for COCO --- these are multilabel probability vectors.
-- `imagenet/`: this is the class probabilities for Imagenet data in the classifier trained in the RCPS repo. However, there is a step in computing these that uses the calibration data for Platt scaling (before the actual RCPS calibration step) [https://github.com/aangelopoulos/rcps/blob/main/imagenet/risk_histogram.py#L151]. I'm not good enough at math to figure out whether that's valid --- I don't think it's valid, and also the paper doesn't mention why that's valid. Maybe you can make an approximate independence argument (it's a constant factor after all, so it can't be that informative about the calibration dataset) so it's probably fine, but like, technically, it's not provably valid.
-- `imagenet_no_T/`: This is the class probabilities without the Platt scaling using the calibration data, it's definitely legit. `T` refers to the name of the constant for scaling in the code.
-- `imba_weights/`: These are the weights generated in the RCPS repo for randomly upweighting and downweighting different classes (b/c misclassification error can be asymmetric). An average is taken over these in terms of coverage when the RCPS does its evalution.
